@@ -1,0 +1,78 @@
+//@version=5
+indicator("H1 M15 LR Detector", overlay=true, max_lines_count=2, max_labels_count=2)
+
+color color_lr = input.color(color.new(color.black, 0), "LR Vonal Színe")
+
+// === ALAKZAT TÁROLÓK ===
+var float[] a_shape_closes = array.new_float(), var int[] a_shape_bars = array.new_int()
+var float[] v_shape_closes = array.new_float(), var int[] v_shape_bars = array.new_int()
+
+// === POTENCIÁLIS SETUP TÁROLÓK ===
+var float potential_bull_qml_level = na, var int potential_bull_qml_bar = na, var float bull_bos_level = na
+var float potential_bear_qml_level = na, var int potential_bear_qml_bar = na, var float bear_bos_level = na
+
+// === VONALKEZELŐK ===
+var line line_bear_lr = na
+var line line_bull_lr = na
+var label label_bear_lr = na
+var label label_bull_lr = na
+
+bool is_bullish = close > open
+bool is_bearish = close < open
+
+valid_tf = timeframe.multiplier == 60 or timeframe.multiplier == 15
+
+// === Setup keresés CSAK H1 vagy M15 TF-en ===
+if valid_tf
+    if is_bullish[1] and is_bearish
+        array.unshift(a_shape_closes, close[1])
+        array.unshift(a_shape_bars, bar_index[1])
+        if array.size(a_shape_closes) > 20
+            array.pop(a_shape_closes)
+            array.pop(a_shape_bars)
+
+        if array.size(a_shape_closes) > 1 and array.size(v_shape_closes) > 0
+            if array.get(a_shape_closes, 0) > array.get(a_shape_closes, 1)
+                for i = 0 to array.size(v_shape_closes) - 1
+                    if array.get(v_shape_bars, i) > array.get(a_shape_bars, 1) and array.get(v_shape_bars, i) < array.get(a_shape_bars, 0)
+                        potential_bear_qml_level := array.get(a_shape_closes, 0)
+                        potential_bear_qml_bar := array.get(a_shape_bars, 0)
+                        bear_bos_level := array.get(v_shape_closes, i)
+                        break
+
+    if is_bearish[1] and is_bullish
+        array.unshift(v_shape_closes, close[1])
+        array.unshift(v_shape_bars, bar_index[1])
+        if array.size(v_shape_closes) > 20
+            array.pop(v_shape_closes)
+            array.pop(v_shape_bars)
+
+        if array.size(v_shape_closes) > 1 and array.size(a_shape_closes) > 0
+            if array.get(v_shape_closes, 0) < array.get(v_shape_closes, 1)
+                for i = 0 to array.size(a_shape_closes) - 1
+                    if array.get(a_shape_bars, i) > array.get(v_shape_bars, 1) and array.get(a_shape_bars, i) < array.get(v_shape_bars, 0)
+                        potential_bull_qml_level := array.get(v_shape_closes, 0)
+                        potential_bull_qml_bar := array.get(v_shape_bars, 0)
+                        bull_bos_level := array.get(a_shape_closes, i)
+                        break
+
+// === VONALAK KIRAJZOLÁSA MINDEN IDŐSÍKON (nem csak H1/M15) ===
+if not na(bear_bos_level) and ta.crossunder(close, bear_bos_level)
+    line.delete(line_bull_lr)
+    label.delete(label_bull_lr)
+    line.delete(line_bear_lr)
+    label.delete(label_bear_lr)
+    line_bear_lr := line.new(potential_bear_qml_bar, potential_bear_qml_level, potential_bear_qml_bar + 20, potential_bear_qml_level, color=color_lr, width=2)
+    label_bear_lr := label.new(potential_bear_qml_bar + 20, potential_bear_qml_level, text=(timeframe.multiplier == 60 ? "H1 LR" : "M15 LR"), textcolor=color.white, style=label.style_label_left, color=color_lr)
+    bear_bos_level := na
+    bull_bos_level := na
+
+if not na(bull_bos_level) and ta.crossover(close, bull_bos_level)
+    line.delete(line_bear_lr)
+    label.delete(label_bear_lr)
+    line.delete(line_bull_lr)
+    label.delete(label_bull_lr)
+    line_bull_lr := line.new(potential_bull_qml_bar, potential_bull_qml_level, potential_bull_qml_bar + 20, potential_bull_qml_level, color=color_lr, width=2)
+    label_bull_lr := label.new(potential_bull_qml_bar + 20, potential_bull_qml_level, text=(timeframe.multiplier == 60 ? "H1 LR" : "M15 LR"), textcolor=color.white, style=label.style_label_left, color=color_lr)
+    bull_bos_level := na
+    bear_bos_level := na
