@@ -1,0 +1,104 @@
+//@version=5
+// =============================================================================
+// Indikátor:   Alchemist Pro - Műszerfal (KIEGÉSZÍTŐ: H1, M15)
+// Leírás:      Ez a KIEGÉSZÍTŐ tábla. 5 oszlopos keretet hoz létre, és
+//              csak a jobb oldali 2 oszlopot (H1, M15) tölti ki.
+// =============================================================================
+indicator("Alchemist Pro - Dashboard_extended H1, M15)", overlay=true)
+
+// === Trend logika (Dual LR) ===
+f_getTrend() =>
+    prevBullish = close[1] > open[1]
+    prevBearish = close[1] < open[1]
+    aShape = prevBullish and close < open
+    vShape = prevBearish and close > open
+    var float aLevel = na
+    var float vLevel = na
+    var bool bullTrend = false
+    var bool bearTrend = false
+    if aShape
+        aLevel := close[1]
+    if vShape
+        vLevel := close[1]
+    if not na(aLevel) and close > aLevel
+        bullTrend := true
+        bearTrend := false
+    if not na(vLevel) and close < vLevel
+        bullTrend := false
+        bearTrend := true
+    [bullTrend, bearTrend]
+
+// === Trend lekérése egy szimbólumra ===
+getTrend(sym) =>
+    [bullH1, bearH1] = request.security(sym, "60", f_getTrend())
+    [bullM15, bearM15] = request.security(sym, "15", f_getTrend())
+    tH1 = bullH1 ? "📈" : bearH1 ? "📉" : "➖"
+    tM15 = bullM15 ? "📈" : bearM15 ? "📉" : "➖"
+    [tH1, tM15]
+
+// === 17 szimbólum trend lekérdezése ===
+[trH1_1, trM15_1] = getTrend("FOREXCOM:AUDUSD")
+[trH1_2, trM15_2] = getTrend("FOREXCOM:USDCAD")
+[trH1_3, trM15_3] = getTrend("FOREXCOM:EURCAD")
+[trH1_4, trM15_4] = getTrend("FOREXCOM:GBPCAD")
+[trH1_5, trM15_5] = getTrend("FOREXCOM:AUDCAD")
+[trH1_6, trM15_6] = getTrend("FOREXCOM:USDJPY")
+[trH1_7, trM15_7] = getTrend("FOREXCOM:USDCHF")
+[trH1_8, trM15_8] = getTrend("FOREXCOM:NZDUSD")
+[trH1_9, trM15_9] = getTrend("FOREXCOM:GBPJPY")
+[trH1_10, trM15_10] = getTrend("FOREXCOM:AUDJPY")
+[trH1_11, trM15_11] = getTrend("FOREXCOM:GBPUSD")
+[trH1_12, trM15_12] = getTrend("FOREXCOM:EURUSD")
+[trH1_13, trM15_13] = getTrend("SAXO:XAUUSD")
+[trH1_14, trM15_14] = getTrend("FOREXCOM:NAS100")
+[trH1_15, trM15_15] = getTrend("FOREXCOM:GBPCHF")
+[trH1_16, trM15_16] = getTrend("FOREXCOM:AUDCHF")
+[trH1_17, trM15_17] = getTrend("FOREXCOM:SPX500")
+
+// === Táblázat létrehozása és feltöltése ===
+if barstate.islast
+    // 5 oszlopos vászon létrehozása
+    var table t = table.new(position.top_right, 5, 18, border_width=1)
+
+    // Fejléc kitöltése a 3. és 4. oszlopban
+    table.cell(t, 3, 0, "H1", bgcolor=color.new(color.gray, 0), text_color=color.white)
+    table.cell(t, 4, 0, "M15", bgcolor=color.new(color.gray, 0), text_color=color.white)
+
+    // Adatok kitöltése a 3. és 4. oszlopban
+    // Sor 1
+    table.cell(t, 3, 1, trH1_1, text_color=trH1_1=="📈"?color.green:trH1_1=="📉"?color.red:color.gray)
+    table.cell(t, 4, 1, trM15_1, text_color=trM15_1=="📈"?color.green:trM15_1=="📉"?color.red:color.gray)
+    // Sor 2
+    table.cell(t, 3, 2, trH1_2, text_color=trH1_2=="📈"?color.green:trH1_2=="📉"?color.red:color.gray)
+    table.cell(t, 4, 2, trM15_2, text_color=trM15_2=="📈"?color.green:trM15_2=="📉"?color.red:color.gray)
+    // ... és a többi, hibátlan formázással
+    table.cell(t, 3, 3, trH1_3, text_color=trH1_3=="📈"?color.green:trH1_3=="📉"?color.red:color.gray)
+    table.cell(t, 4, 3, trM15_3, text_color=trM15_3=="📈"?color.green:trM15_3=="📉"?color.red:color.gray)
+    table.cell(t, 3, 4, trH1_4, text_color=trH1_4=="📈"?color.green:trH1_4=="📉"?color.red:color.gray)
+    table.cell(t, 4, 4, trM15_4, text_color=trM15_4=="📈"?color.green:trM15_4=="📉"?color.red:color.gray)
+    table.cell(t, 3, 5, trH1_5, text_color=trH1_5=="📈"?color.green:trH1_5=="📉"?color.red:color.gray)
+    table.cell(t, 4, 5, trM15_5, text_color=trM15_5=="📈"?color.green:trM15_5=="📉"?color.red:color.gray)
+    table.cell(t, 3, 6, trH1_6, text_color=trH1_6=="📈"?color.green:trH1_6=="📉"?color.red:color.gray)
+    table.cell(t, 4, 6, trM15_6, text_color=trM15_6=="📈"?color.green:trM15_6=="📉"?color.red:color.gray)
+    table.cell(t, 3, 7, trH1_7, text_color=trH1_7=="📈"?color.green:trH1_7=="📉"?color.red:color.gray)
+    table.cell(t, 4, 7, trM15_7, text_color=trM15_7=="📈"?color.green:trM15_7=="📉"?color.red:color.gray)
+    table.cell(t, 3, 8, trH1_8, text_color=trH1_8=="📈"?color.green:trH1_8=="📉"?color.red:color.gray)
+    table.cell(t, 4, 8, trM15_8, text_color=trM15_8=="📈"?color.green:trM15_8=="📉"?color.red:color.gray)
+    table.cell(t, 3, 9, trH1_9, text_color=trH1_9=="📈"?color.green:trH1_9=="📉"?color.red:color.gray)
+    table.cell(t, 4, 9, trM15_9, text_color=trM15_9=="📈"?color.green:trM15_9=="📉"?color.red:color.gray)
+    table.cell(t, 3, 10, trH1_10, text_color=trH1_10=="📈"?color.green:trH1_10=="📉"?color.red:color.gray)
+    table.cell(t, 4, 10, trM15_10, text_color=trM15_10=="📈"?color.green:trM15_10=="📉"?color.red:color.gray)
+    table.cell(t, 3, 11, trH1_11, text_color=trH1_11=="📈"?color.green:trH1_11=="📉"?color.red:color.gray)
+    table.cell(t, 4, 11, trM15_11, text_color=trM15_11=="📈"?color.green:trM15_11=="📉"?color.red:color.gray)
+    table.cell(t, 3, 12, trH1_12, text_color=trH1_12=="📈"?color.green:trH1_12=="📉"?color.red:color.gray)
+    table.cell(t, 4, 12, trM15_12, text_color=trM15_12=="📈"?color.green:trM15_12=="📉"?color.red:color.gray)
+    table.cell(t, 3, 13, trH1_13, text_color=trH1_13=="📈"?color.green:trH1_13=="📉"?color.red:color.gray)
+    table.cell(t, 4, 13, trM15_13, text_color=trM15_13=="📈"?color.green:trM15_13=="📉"?color.red:color.gray)
+    table.cell(t, 3, 14, trH1_14, text_color=trH1_14=="📈"?color.green:trH1_14=="📉"?color.red:color.gray)
+    table.cell(t, 4, 14, trM15_14, text_color=trM15_14=="📈"?color.green:trM15_14=="📉"?color.red:color.gray)
+    table.cell(t, 3, 15, trH1_15, text_color=trH1_15=="📈"?color.green:trH1_15=="📉"?color.red:color.gray)
+    table.cell(t, 4, 15, trM15_15, text_color=trM15_15=="📈"?color.green:trM15_15=="📉"?color.red:color.gray)
+    table.cell(t, 3, 16, trH1_16, text_color=trH1_16=="📈"?color.green:trH1_16=="📉"?color.red:color.gray)
+    table.cell(t, 4, 16, trM15_16, text_color=trM15_16=="📈"?color.green:trM15_16=="📉"?color.red:color.gray)
+    table.cell(t, 3, 17, trH1_17, text_color=trH1_17=="📈"?color.green:trH1_17=="📉"?color.red:color.gray)
+    table.cell(t, 4, 17, trM15_17, text_color=trM15_17=="📈"?color.green:trM15_17=="📉"?color.red:color.gray)
