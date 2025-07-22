@@ -1,0 +1,92 @@
+//@version=5
+indicator("Alchemist Pro - Dashboard D1, H4 ", overlay=true)
+
+// === Trend logika (Dual LR) ===
+f_getTrend() =>
+    prevBullish = close[1] > open[1]
+    prevBearish = close[1] < open[1]
+    aShape = prevBullish and close < open
+    vShape = prevBearish and close > open
+    var float aLevel = na
+    var float vLevel = na
+    var bool bullTrend = false
+    var bool bearTrend = false
+    if aShape
+        aLevel := close[1]
+    if vShape
+        vLevel := close[1]
+    if not na(aLevel) and close > aLevel
+        bullTrend := true
+        bearTrend := false
+    if not na(vLevel) and close < vLevel
+        bullTrend := false
+        bearTrend := true
+    [bullTrend, bearTrend]
+
+// === Trend lekérése szimbólumra ===
+getTrend(sym) =>
+    [bull4h, bear4h] = request.security(sym, "240", f_getTrend())
+    [bull1d, bear1d] = request.security(sym, "D", f_getTrend())
+    t4h = bull4h ? "📈" : bear4h ? "📉" : "➖"
+    t1d = bull1d ? "📈" : bear1d ? "📉" : "➖"
+    [t4h, t1d]
+
+// === Táblázatsor kitöltő függvény ===
+fillRow(sym, row, t1d, t4h, currentSymbol, t) =>
+    displaySym = str.replace(str.replace(sym, "FOREXCOM:", ""), "SAXO:", "")
+    label = currentSymbol == sym ? "🔸 " + displaySym : displaySym
+    table.cell(t, 0, row, label)
+    table.cell(t, 1, row, t1d, text_color=t1d=="📈"?color.green:t1d=="📉"?color.red:color.gray)
+    table.cell(t, 2, row, t4h, text_color=t4h=="📈"?color.green:t4h=="📉"?color.red:color.gray)
+    // oszlop 3 (H1) és 4 (M15) üresen hagyva
+
+// === Trendlekérdezés 17 szimbólumra ===
+[tr4h1, tr1d1] = getTrend("FOREXCOM:AUDUSD")
+[tr4h2, tr1d2] = getTrend("FOREXCOM:USDCAD")
+[tr4h3, tr1d3] = getTrend("FOREXCOM:EURCAD")
+[tr4h4, tr1d4] = getTrend("FOREXCOM:GBPCAD")
+[tr4h5, tr1d5] = getTrend("FOREXCOM:AUDCAD")
+[tr4h6, tr1d6] = getTrend("FOREXCOM:USDJPY")
+[tr4h7, tr1d7] = getTrend("FOREXCOM:USDCHF")
+[tr4h8, tr1d8] = getTrend("FOREXCOM:NZDUSD")
+[tr4h9, tr1d9] = getTrend("FOREXCOM:GBPJPY")
+[tr4h10, tr1d10] = getTrend("FOREXCOM:AUDJPY")
+[tr4h11, tr1d11] = getTrend("FOREXCOM:GBPUSD")
+[tr4h12, tr1d12] = getTrend("FOREXCOM:EURUSD")
+[tr4h13, tr1d13] = getTrend("SAXO:XAUUSD")
+[tr4h14, tr1d14] = getTrend("FOREXCOM:NAS100")
+[tr4h15, tr1d15] = getTrend("FOREXCOM:GBPCHF")
+[tr4h16, tr1d16] = getTrend("FOREXCOM:AUDCHF")
+[tr4h17, tr1d17] = getTrend("FOREXCOM:SPX500")
+
+// === Tábla létrehozás és kitöltés ===
+if barstate.islast
+    var table t = table.new(position.top_right, 5, 18, border_width=1)
+
+    // Fejléc (row 0)
+    table.cell(t, 0, 0, "Symbol", bgcolor=color.new(color.gray, 0), text_color=color.white)
+    table.cell(t, 1, 0, "D1", bgcolor=color.new(color.gray, 0), text_color=color.white)
+    table.cell(t, 2, 0, "H4", bgcolor=color.new(color.gray, 0), text_color=color.white)
+    table.cell(t, 3, 0, "H1", bgcolor=color.new(color.gray, 90), text_color=color.white)
+    table.cell(t, 4, 0, "M15", bgcolor=color.new(color.gray, 90), text_color=color.white)
+
+    currentSymbol = syminfo.tickerid
+
+    // Sorok kitöltése (Symbol, D1, H4) – oszlop 3–4 üresen hagyva
+    fillRow("FOREXCOM:AUDUSD", 1, tr1d1, tr4h1, currentSymbol, t)
+    fillRow("FOREXCOM:USDCAD", 2, tr1d2, tr4h2, currentSymbol, t)
+    fillRow("FOREXCOM:EURCAD", 3, tr1d3, tr4h3, currentSymbol, t)
+    fillRow("FOREXCOM:GBPCAD", 4, tr1d4, tr4h4, currentSymbol, t)
+    fillRow("FOREXCOM:AUDCAD", 5, tr1d5, tr4h5, currentSymbol, t)
+    fillRow("FOREXCOM:USDJPY", 6, tr1d6, tr4h6, currentSymbol, t)
+    fillRow("FOREXCOM:USDCHF", 7, tr1d7, tr4h7, currentSymbol, t)
+    fillRow("FOREXCOM:NZDUSD", 8, tr1d8, tr4h8, currentSymbol, t)
+    fillRow("FOREXCOM:GBPJPY", 9, tr1d9, tr4h9, currentSymbol, t)
+    fillRow("FOREXCOM:AUDJPY", 10, tr1d10, tr4h10, currentSymbol, t)
+    fillRow("FOREXCOM:GBPUSD", 11, tr1d11, tr4h11, currentSymbol, t)
+    fillRow("FOREXCOM:EURUSD", 12, tr1d12, tr4h12, currentSymbol, t)
+    fillRow("SAXO:XAUUSD", 13, tr1d13, tr4h13, currentSymbol, t)
+    fillRow("FOREXCOM:NAS100", 14, tr1d14, tr4h14, currentSymbol, t)
+    fillRow("FOREXCOM:GBPCHF", 15, tr1d15, tr4h15, currentSymbol, t)
+    fillRow("FOREXCOM:AUDCHF", 16, tr1d16, tr4h16, currentSymbol, t)
+    fillRow("FOREXCOM:SPX500", 17, tr1d17, tr4h17, currentSymbol, t)
