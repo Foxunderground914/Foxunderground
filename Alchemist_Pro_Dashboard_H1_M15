@@ -1,5 +1,5 @@
 //@version=5
-indicator("H1 M15 LR Dashboard (fix symbolokkal, syntax OK)", overlay=true, max_labels_count=2, max_lines_count=2)
+indicator("H1 M15 LR Dashboard (fixed)", overlay=true, max_labels_count=2, max_lines_count=2)
 
 // --- LR logic (ugyanaz, mint eddig) ---
 f_lr_dir() =>
