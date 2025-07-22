@@ -1,46 +1,88 @@
 //@version=5
-indicator("Alchemist Pro - Dashboard D1, H4 ", overlay=true)
+indicator("Alchemist Pro - D1, H4 Dashboard", overlay=true)
+
+// Ez a script a "Dual LR" (Last Resistance/Support) logika alapján számítja ki a trendet
+// több előre definiált szimbólumra a Daily (D1) és 4 órás (H4) időkereteken.
+// Az eredményeket egy áttekintő táblázatban jeleníti meg a charton.
 
 // === Trend logika (Dual LR) ===
+// Ez a függvény az "A-alakú" (medve) és "V-alakú" (bika) gyertyaalakzatokat keresi,
+// amelyek a korábbi gyertya záróárához képest a jelenlegi gyertya mozgását vizsgálják.
+// Ha a jelenlegi ár áttöri a korábbi gyertya záróárát (ami ellenállás/támasz szintként funkcionál),
+// akkor megerősíti a trend irányát.
 f_getTrend() =>
+    // Ellenőrzi, hogy az előző gyertya bullish volt-e (záró > nyitó)
     prevBullish = close[1] > open[1]
+    // Ellenőrzi, hogy az előző gyertya bearish volt-e (záró < nyitó)
     prevBearish = close[1] < open[1]
+
+    // "A-alakú" minta: Előző bullish gyertya után a jelenlegi gyertya bearish (záró < nyitó)
     aShape = prevBullish and close < open
+    // "V-alakú" minta: Előző bearish gyertya után a jelenlegi gyertya bullish (záró > nyitó)
     vShape = prevBearish and close > open
-    var float aLevel = na
-    var float vLevel = na
-    var bool bullTrend = false
-    var bool bearTrend = false
+
+    // Szintek tárolására szolgáló változók (Last Resistance / Last Support)
+    var float aLevel = na // Az "A-alakú" szintje (előző gyertya záróára)
+    var float vLevel = na // A "V-alakú" szintje (előző gyertya záróára)
+
+    // Trend irányát jelző logikai változók
+    var bool bullTrend = false // Igaz, ha bullish trend van
+    var bool bearTrend = false // Igaz, ha bearish trend van
+
+    // Ha "A-alakú" minta alakul ki, rögzíti az aLevel-t
     if aShape
         aLevel := close[1]
+    // Ha "V-alakú" minta alakul ki, rögzíti az vLevel-t
     if vShape
         vLevel := close[1]
+
+    // Ha van aLevel és a jelenlegi záróár felette van, akkor bullish trend
     if not na(aLevel) and close > aLevel
         bullTrend := true
-        bearTrend := false
+        bearTrend := false // Biztosítja, hogy ne legyen egyszerre bullish és bearish
+    // Ha van vLevel és a jelenlegi záróár alatta van, akkor bearish trend
     if not na(vLevel) and close < vLevel
-        bullTrend := false
+        bullTrend := false // Biztosítja, hogy ne legyen egyszerre bullish és bearish
         bearTrend := true
+
+    // Visszatér a bullish és bearish trend állapotával
     [bullTrend, bearTrend]
 
-// === Trend lekérése szimbólumra ===
+// === Trend lekérése adott szimbólumra és időkeretre ===
+// Ez a függvény a f_getTrend() logikáját alkalmazza egy megadott szimbólumra
+// a 4 órás (240 perc) és Daily (D) időkereteken.
+// Az eredményt ikonokká (📈, 📉, ➖) alakítja a könnyebb vizuális megjelenítés érdekében.
 getTrend(sym) =>
-    [bull4h, bear4h] = request.security(sym, "240", f_getTrend())
-    [bull1d, bear1d] = request.security(sym, "D", f_getTrend())
+    // Lekéri a bullish és bearish trend állapotát a 4 órás időkereten
+    [bull4h, bear4h] = request.security(sym, "240", f_getTrend(), lookahead=barmerge.lookahead_off)
+    // Lekéri a bullish és bearish trend állapotát a Daily időkereten
+    [bull1d, bear1d] = request.security(sym, "D", f_getTrend(), lookahead=barmerge.lookahead_off)
+
+    // Ikonokká alakítja a 4 órás trendet
     t4h = bull4h ? "📈" : bear4h ? "📉" : "➖"
+    // Ikonokká alakítja a Daily trendet
     t1d = bull1d ? "📈" : bear1d ? "📉" : "➖"
+
+    // Visszatér a 4 órás és Daily trend ikonokkal
     [t4h, t1d]
 
 // === Táblázatsor kitöltő függvény ===
+// Ez a függvény egy táblázat sorát tölti ki a megadott szimbólummal és trend ikonokkal.
+// Kiemeli az aktuálisan megnyitott chart szimbólumát.
 fillRow(sym, row, t1d, t4h, currentSymbol, t) =>
+    // Eltávolítja a bróker prefixeket (pl. FOREXCOM:, SAXO:) a szimbólum nevéből
     displaySym = str.replace(str.replace(sym, "FOREXCOM:", ""), "SAXO:", "")
+    // Hozzáad egy kiemelő ikont (🔸) az aktuális chart szimbólumához
     label = currentSymbol == sym ? "🔸 " + displaySym : displaySym
-    table.cell(t, 0, row, label)
-    table.cell(t, 1, row, t1d, text_color=t1d=="📈"?color.green:t1d=="📉"?color.red:color.gray)
-    table.cell(t, 2, row, t4h, text_color=t4h=="📈"?color.green:t4h=="📉"?color.red:color.gray)
-    // oszlop 3 (H1) és 4 (M15) üresen hagyva
 
-// === Trendlekérdezés 17 szimbólumra ===
+    // Kitölti a táblázat celláit
+    table.cell(t, 0, row, label) // Szimbólum neve
+    table.cell(t, 1, row, t1d, text_color=t1d=="📈"?color.green:t1d=="📉"?color.red:color.gray) // D1 trend és szín
+    table.cell(t, 2, row, t4h, text_color=t4h=="📈"?color.green:t4h=="📉"?color.red:color.gray) // H4 trend és szín
+    // Az oszlop 3 (H1) és 4 (M15) üresen hagyva ebben a verzióban, de a táblázat szerkezete készen áll rájuk.
+
+// === Trendlekérdezés 17 előre definiált szimbólumra ===
+// Ezek a változók tárolják a 17 szimbólum Daily és 4 órás trendjeit.
 [tr4h1, tr1d1] = getTrend("FOREXCOM:AUDUSD")
 [tr4h2, tr1d2] = getTrend("FOREXCOM:USDCAD")
 [tr4h3, tr1d3] = getTrend("FOREXCOM:EURCAD")
@@ -53,26 +95,30 @@ fillRow(sym, row, t1d, t4h, currentSymbol, t) =>
 [tr4h10, tr1d10] = getTrend("FOREXCOM:AUDJPY")
 [tr4h11, tr1d11] = getTrend("FOREXCOM:GBPUSD")
 [tr4h12, tr1d12] = getTrend("FOREXCOM:EURUSD")
-[tr4h13, tr1d13] = getTrend("SAXO:XAUUSD")
-[tr4h14, tr1d14] = getTrend("FOREXCOM:NAS100")
+[tr4h13, tr1d13] = getTrend("SAXO:XAUUSD") // Arany
+[tr4h14, tr1d14] = getTrend("FOREXCOM:NAS100") // Nasdaq 100 index
 [tr4h15, tr1d15] = getTrend("FOREXCOM:GBPCHF")
 [tr4h16, tr1d16] = getTrend("FOREXCOM:AUDCHF")
-[tr4h17, tr1d17] = getTrend("FOREXCOM:SPX500")
+[tr4h17, tr1d17] = getTrend("FOREXCOM:SPX500") // S&P 500 index
 
 // === Tábla létrehozás és kitöltés ===
+// A táblázat csak a legutolsó gyertyán frissül a teljesítmény optimalizálása érdekében.
 if barstate.islast
+    // Létrehozza a táblázatot a jobb felső sarokban, 5 oszloppal és 18 sorral (fejléc + 17 szimbólum)
     var table t = table.new(position.top_right, 5, 18, border_width=1)
 
-    // Fejléc (row 0)
+    // Fejléc (0. sor)
     table.cell(t, 0, 0, "Symbol", bgcolor=color.new(color.gray, 0), text_color=color.white)
     table.cell(t, 1, 0, "D1", bgcolor=color.new(color.gray, 0), text_color=color.white)
     table.cell(t, 2, 0, "H4", bgcolor=color.new(color.gray, 0), text_color=color.white)
-    table.cell(t, 3, 0, "H1", bgcolor=color.new(color.gray, 90), text_color=color.white)
-    table.cell(t, 4, 0, "M15", bgcolor=color.new(color.gray, 90), text_color=color.white)
+    table.cell(t, 3, 0, "H1", bgcolor=color.new(color.gray, 90), text_color=color.white) // Üresen hagyva
+    table.cell(t, 4, 0, "M15", bgcolor=color.new(color.gray, 90), text_color=color.white) // Üresen hagyva
 
+    // Az aktuálisan megnyitott chart szimbólumának lekérése
     currentSymbol = syminfo.tickerid
 
-    // Sorok kitöltése (Symbol, D1, H4) – oszlop 3–4 üresen hagyva
+    // Sorok kitöltése (Szimbólum, D1 trend, H4 trend)
+    // Az oszlop 3 és 4 (H1, M15) üresen marad, de a táblázat szerkezete készen áll rájuk.
     fillRow("FOREXCOM:AUDUSD", 1, tr1d1, tr4h1, currentSymbol, t)
     fillRow("FOREXCOM:USDCAD", 2, tr1d2, tr4h2, currentSymbol, t)
     fillRow("FOREXCOM:EURCAD", 3, tr1d3, tr4h3, currentSymbol, t)
