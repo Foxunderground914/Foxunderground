@@ -31,14 +31,14 @@ f_getTrend() =>
     [bullTrend, bearTrend, lrLevel]
 
 // 4H, 1D trendek csak ZÁRT gyertyán!
-[bull4h, bear4h, lr4h] = request.security(syminfo.tickerid, "240", f_getTrend(), lookahead=barmerge.lookahead_on)
-[bull1d, bear1d, lr1d] = request.security(syminfo.tickerid, "D", f_getTrend(), lookahead=barmerge.lookahead_on)
+[bull4h, bear4h, lr4h] = request.security(syminfo.tickerid, "240", f_getTrend(), lookahead=barmerge.lookahead_off)
+[bull1d, bear1d, lr1d] = request.security(syminfo.tickerid, "D", f_getTrend(), lookahead=barmerge.lookahead_off)
 
 // 4H LR VONAL + CÍMKE
 var line line4h = na
 var label label4h = na
 
-if barstate.isconfirmed  // <-- csak zárt gyertyán
+if barstate.isconfirmed  // csak zárt gyertyán
     if bull4h or bear4h
         if not na(line4h)
             line.delete(line4h)
@@ -51,7 +51,7 @@ if barstate.isconfirmed  // <-- csak zárt gyertyán
 var line line1d = na
 var label label1d = na
 
-if barstate.isconfirmed  // <-- csak zárt gyertyán
+if barstate.isconfirmed  // csak zárt gyertyán
     if bull1d or bear1d
         if not na(line1d)
             line.delete(line1d)
@@ -60,17 +60,19 @@ if barstate.isconfirmed  // <-- csak zárt gyertyán
         line1d := line.new(x1=bar_index, y1=lr1d, x2=bar_index + 20, y2=lr1d, color=color.black, width=2)
         label1d := label.new(x=bar_index + 20, y=lr1d, text="1D LR", textcolor=color.white, style=label.style_label_left, color=color.black)
 
-// TÁBLÁZAT: trend irányok
+// TÁBLÁZAT: trend irányok (csak lezárt gyertyára!)
 var table trendTable = na
 if na(trendTable)
     trendTable := table.new(position=position.top_center, columns=1, rows=2, border_width=1)
 
-if bull4h
-    table.cell(trendTable, 0, 0, text="4H BULLISH", text_color=color.white, bgcolor=color.green)
-else if bear4h
-    table.cell(trendTable, 0, 0, text="4H BEARISH", text_color=color.white, bgcolor=color.red)
+if barstate.isconfirmed  // CSAK zárt gyertyán frissítjük!
+    if bull4h
+        table.cell(trendTable, 0, 0, text="4H BULLISH", text_color=color.white, bgcolor=color.green)
+    else if bear4h
+        table.cell(trendTable, 0, 0, text="4H BEARISH", text_color=color.white, bgcolor=color.red)
 
-if bull1d
-    table.cell(trendTable, 0, 1, text="1D BULLISH", text_color=color.white, bgcolor=color.green)
-else if bear1d
-    table.cell(trendTable, 0, 1, text="1D BEARISH", text_color=color.white, bgcolor=color.red)
+    if bull1d
+        table.cell(trendTable, 0, 1, text="1D BULLISH", text_color=color.white, bgcolor=color.green)
+    else if bear1d
+        table.cell(trendTable, 0, 1, text="1D BEARISH", text_color=color.white, bgcolor=color.red)
+
