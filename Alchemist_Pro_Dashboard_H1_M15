@@ -1,104 +1,125 @@
 //@version=5
-// =============================================================================
-// Indikátor:   Alchemist Pro - Műszerfal (KIEGÉSZÍTŐ: H1, M15)
-// Leírás:      Ez a KIEGÉSZÍTŐ tábla. 5 oszlopos keretet hoz létre, és
-//              csak a jobb oldali 2 oszlopot (H1, M15) tölti ki.
-// =============================================================================
-indicator("Alchemist Pro - Dashboard_extended H1, M15)", overlay=true)
+indicator("H1 M15 LR Dashboard (fix symbolokkal, syntax OK)", overlay=true, max_labels_count=2, max_lines_count=2)
 
-// === Trend logika (Dual LR) ===
-f_getTrend() =>
-    prevBullish = close[1] > open[1]
-    prevBearish = close[1] < open[1]
-    aShape = prevBullish and close < open
-    vShape = prevBearish and close > open
-    var float aLevel = na
-    var float vLevel = na
-    var bool bullTrend = false
-    var bool bearTrend = false
-    if aShape
-        aLevel := close[1]
-    if vShape
-        vLevel := close[1]
-    if not na(aLevel) and close > aLevel
-        bullTrend := true
-        bearTrend := false
-    if not na(vLevel) and close < vLevel
-        bullTrend := false
-        bearTrend := true
-    [bullTrend, bearTrend]
+// --- LR logic (ugyanaz, mint eddig) ---
+f_lr_dir() =>
+    var float[] a_shape_closes = array.new_float()
+    var int[] a_shape_bars = array.new_int()
+    var float[] v_shape_closes = array.new_float()
+    var int[] v_shape_bars = array.new_int()
+    var float potential_bull_qml_level = na
+    var int potential_bull_qml_bar = na
+    var float bull_bos_level = na
+    var float potential_bear_qml_level = na
+    var int potential_bear_qml_bar = na
+    var float bear_bos_level = na
+    var int lr_dir = na
+    if barstate.isconfirmed
+        if close[1] > open[1] and close < open
+            array.unshift(a_shape_closes, close[1])
+            array.unshift(a_shape_bars, bar_index[1])
+            if array.size(a_shape_closes) > 20
+                array.pop(a_shape_closes)
+                array.pop(a_shape_bars)
+            if array.size(a_shape_closes) > 1 and array.size(v_shape_closes) > 0
+                if array.get(a_shape_closes, 0) > array.get(a_shape_closes, 1)
+                    for i = 0 to array.size(v_shape_closes) - 1
+                        if array.get(v_shape_bars, i) > array.get(a_shape_bars, 1) and array.get(v_shape_bars, i) < array.get(a_shape_bars, 0)
+                            potential_bear_qml_level := array.get(a_shape_closes, 0)
+                            potential_bear_qml_bar := array.get(a_shape_bars, 0)
+                            bear_bos_level := array.get(v_shape_closes, i)
+                            break
+        if close[1] < open[1] and close > open
+            array.unshift(v_shape_closes, close[1])
+            array.unshift(v_shape_bars, bar_index[1])
+            if array.size(v_shape_closes) > 20
+                array.pop(v_shape_closes)
+                array.pop(v_shape_bars)
+            if array.size(v_shape_closes) > 1 and array.size(a_shape_closes) > 0
+                if array.get(v_shape_closes, 0) < array.get(v_shape_closes, 1)
+                    for i = 0 to array.size(a_shape_closes) - 1
+                        if array.get(a_shape_bars, i) > array.get(v_shape_bars, 1) and array.get(a_shape_bars, i) < array.get(v_shape_bars, 0)
+                            potential_bull_qml_level := array.get(v_shape_closes, 0)
+                            potential_bull_qml_bar := array.get(v_shape_bars, 0)
+                            bull_bos_level := array.get(a_shape_closes, i)
+                            break
+        if not na(bear_bos_level) and close[1] >= bear_bos_level and close < bear_bos_level
+            lr_dir := -1
+            bear_bos_level := na
+            bull_bos_level := na
+        if not na(bull_bos_level) and close[1] <= bull_bos_level and close > bull_bos_level
+            lr_dir := 1
+            bull_bos_level := na
+            bear_bos_level := na
+    lr_dir
 
-// === Trend lekérése egy szimbólumra ===
-getTrend(sym) =>
-    [bullH1, bearH1] = request.security(sym, "60", f_getTrend())
-    [bullM15, bearM15] = request.security(sym, "15", f_getTrend())
-    tH1 = bullH1 ? "📈" : bearH1 ? "📉" : "➖"
-    tM15 = bullM15 ? "📈" : bearM15 ? "📉" : "➖"
-    [tH1, tM15]
+// --- Egy sort rajzol a dashboard táblázatban ---
+show_row(table t, string name, int lr_dir_h, int lr_dir_m, int i) =>
+    icon_h = lr_dir_h == 1 ? "📈" : lr_dir_h == -1 ? "📉" : ""
+    icon_m = lr_dir_m == 1 ? "📈" : lr_dir_m == -1 ? "📉" : ""
+    color_h = lr_dir_h == 1 ? color.green : lr_dir_h == -1 ? color.red : na
+    color_m = lr_dir_m == 1 ? color.green : lr_dir_m == -1 ? color.red : na
+    table.cell(t, 0, i, name, text_color=color.white)
+    table.cell(t, 1, i, icon_h, text_color=color_h)
+    table.cell(t, 2, i, icon_m, text_color=color_m)
 
-// === 17 szimbólum trend lekérdezése ===
-[trH1_1, trM15_1] = getTrend("FOREXCOM:AUDUSD")
-[trH1_2, trM15_2] = getTrend("FOREXCOM:USDCAD")
-[trH1_3, trM15_3] = getTrend("FOREXCOM:EURCAD")
-[trH1_4, trM15_4] = getTrend("FOREXCOM:GBPCAD")
-[trH1_5, trM15_5] = getTrend("FOREXCOM:AUDCAD")
-[trH1_6, trM15_6] = getTrend("FOREXCOM:USDJPY")
-[trH1_7, trM15_7] = getTrend("FOREXCOM:USDCHF")
-[trH1_8, trM15_8] = getTrend("FOREXCOM:NZDUSD")
-[trH1_9, trM15_9] = getTrend("FOREXCOM:GBPJPY")
-[trH1_10, trM15_10] = getTrend("FOREXCOM:AUDJPY")
-[trH1_11, trM15_11] = getTrend("FOREXCOM:GBPUSD")
-[trH1_12, trM15_12] = getTrend("FOREXCOM:EURUSD")
-[trH1_13, trM15_13] = getTrend("SAXO:XAUUSD")
-[trH1_14, trM15_14] = getTrend("FOREXCOM:NAS100")
-[trH1_15, trM15_15] = getTrend("FOREXCOM:GBPCHF")
-[trH1_16, trM15_16] = getTrend("FOREXCOM:AUDCHF")
-[trH1_17, trM15_17] = getTrend("FOREXCOM:SPX500")
+// --- Symbolok H1/M15 LR külön változókban ---
+lr_dir_h1_1  = request.security("FOREXCOM:AUDUSD", "60", f_lr_dir())
+lr_dir_m15_1 = request.security("FOREXCOM:AUDUSD", "15", f_lr_dir())
+lr_dir_h1_2  = request.security("FOREXCOM:USDCAD", "60", f_lr_dir())
+lr_dir_m15_2 = request.security("FOREXCOM:USDCAD", "15", f_lr_dir())
+lr_dir_h1_3  = request.security("FOREXCOM:EURCAD", "60", f_lr_dir())
+lr_dir_m15_3 = request.security("FOREXCOM:EURCAD", "15", f_lr_dir())
+lr_dir_h1_4  = request.security("FOREXCOM:GBPCAD", "60", f_lr_dir())
+lr_dir_m15_4 = request.security("FOREXCOM:GBPCAD", "15", f_lr_dir())
+lr_dir_h1_5  = request.security("FOREXCOM:AUDCAD", "60", f_lr_dir())
+lr_dir_m15_5 = request.security("FOREXCOM:AUDCAD", "15", f_lr_dir())
+lr_dir_h1_6  = request.security("FOREXCOM:USDJPY", "60", f_lr_dir())
+lr_dir_m15_6 = request.security("FOREXCOM:USDJPY", "15", f_lr_dir())
+lr_dir_h1_7  = request.security("FOREXCOM:USDCHF", "60", f_lr_dir())
+lr_dir_m15_7 = request.security("FOREXCOM:USDCHF", "15", f_lr_dir())
+lr_dir_h1_8  = request.security("FOREXCOM:NZDUSD", "60", f_lr_dir())
+lr_dir_m15_8 = request.security("FOREXCOM:NZDUSD", "15", f_lr_dir())
+lr_dir_h1_9  = request.security("FOREXCOM:GBPJPY", "60", f_lr_dir())
+lr_dir_m15_9 = request.security("FOREXCOM:GBPJPY", "15", f_lr_dir())
+lr_dir_h1_10 = request.security("FOREXCOM:AUDJPY", "60", f_lr_dir())
+lr_dir_m15_10 = request.security("FOREXCOM:AUDJPY", "15", f_lr_dir())
+lr_dir_h1_11 = request.security("FOREXCOM:GBPUSD", "60", f_lr_dir())
+lr_dir_m15_11 = request.security("FOREXCOM:GBPUSD", "15", f_lr_dir())
+lr_dir_h1_12 = request.security("FOREXCOM:EURUSD", "60", f_lr_dir())
+lr_dir_m15_12 = request.security("FOREXCOM:EURUSD", "15", f_lr_dir())
+lr_dir_h1_13 = request.security("SAXO:XAUUSD", "60", f_lr_dir())
+lr_dir_m15_13 = request.security("SAXO:XAUUSD", "15", f_lr_dir())
+lr_dir_h1_14 = request.security("FOREXCOM:NAS100", "60", f_lr_dir())
+lr_dir_m15_14 = request.security("FOREXCOM:NAS100", "15", f_lr_dir())
+lr_dir_h1_15 = request.security("FOREXCOM:GBPCHF", "60", f_lr_dir())
+lr_dir_m15_15 = request.security("FOREXCOM:GBPCHF", "15", f_lr_dir())
+lr_dir_h1_16 = request.security("FOREXCOM:AUDCHF", "60", f_lr_dir())
+lr_dir_m15_16 = request.security("FOREXCOM:AUDCHF", "15", f_lr_dir())
+lr_dir_h1_17 = request.security("FOREXCOM:SPX500", "60", f_lr_dir())
+lr_dir_m15_17 = request.security("FOREXCOM:SPX500", "15", f_lr_dir())
 
-// === Táblázat létrehozása és feltöltése ===
 if barstate.islast
-    // 5 oszlopos vászon létrehozása
-    var table t = table.new(position.top_right, 5, 18, border_width=1)
+    var table t = table.new(position.top_right, 3, 18, border_width=1)
+    table.cell(t, 0, 0, "Symbol", bgcolor=color.new(color.gray, 0), text_color=color.white)
+    table.cell(t, 1, 0, "H1", bgcolor=color.new(color.gray, 0), text_color=color.white)
+    table.cell(t, 2, 0, "M15", bgcolor=color.new(color.gray, 0), text_color=color.white)
 
-    // Fejléc kitöltése a 3. és 4. oszlopban
-    table.cell(t, 3, 0, "H1", bgcolor=color.new(color.gray, 0), text_color=color.white)
-    table.cell(t, 4, 0, "M15", bgcolor=color.new(color.gray, 0), text_color=color.white)
+    show_row(t, "AUDUSD",  lr_dir_h1_1,  lr_dir_m15_1,  1)
+    show_row(t, "USDCAD",  lr_dir_h1_2,  lr_dir_m15_2,  2)
+    show_row(t, "EURCAD",  lr_dir_h1_3,  lr_dir_m15_3,  3)
+    show_row(t, "GBPCAD",  lr_dir_h1_4,  lr_dir_m15_4,  4)
+    show_row(t, "AUDCAD",  lr_dir_h1_5,  lr_dir_m15_5,  5)
+    show_row(t, "USDJPY",  lr_dir_h1_6,  lr_dir_m15_6,  6)
+    show_row(t, "USDCHF",  lr_dir_h1_7,  lr_dir_m15_7,  7)
+    show_row(t, "NZDUSD",  lr_dir_h1_8,  lr_dir_m15_8,  8)
+    show_row(t, "GBPJPY",  lr_dir_h1_9,  lr_dir_m15_9,  9)
+    show_row(t, "AUDJPY",  lr_dir_h1_10, lr_dir_m15_10, 10)
+    show_row(t, "GBPUSD",  lr_dir_h1_11, lr_dir_m15_11, 11)
+    show_row(t, "EURUSD",  lr_dir_h1_12, lr_dir_m15_12, 12)
+    show_row(t, "XAUUSD",  lr_dir_h1_13, lr_dir_m15_13, 13)
+    show_row(t, "NAS100",  lr_dir_h1_14, lr_dir_m15_14, 14)
+    show_row(t, "GBPCHF",  lr_dir_h1_15, lr_dir_m15_15, 15)
+    show_row(t, "AUDCHF",  lr_dir_h1_16, lr_dir_m15_16, 16)
+    show_row(t, "SPX500",  lr_dir_h1_17, lr_dir_m15_17, 17)
 
-    // Adatok kitöltése a 3. és 4. oszlopban
-    // Sor 1
-    table.cell(t, 3, 1, trH1_1, text_color=trH1_1=="📈"?color.green:trH1_1=="📉"?color.red:color.gray)
-    table.cell(t, 4, 1, trM15_1, text_color=trM15_1=="📈"?color.green:trM15_1=="📉"?color.red:color.gray)
-    // Sor 2
-    table.cell(t, 3, 2, trH1_2, text_color=trH1_2=="📈"?color.green:trH1_2=="📉"?color.red:color.gray)
-    table.cell(t, 4, 2, trM15_2, text_color=trM15_2=="📈"?color.green:trM15_2=="📉"?color.red:color.gray)
-    // ... és a többi, hibátlan formázással
-    table.cell(t, 3, 3, trH1_3, text_color=trH1_3=="📈"?color.green:trH1_3=="📉"?color.red:color.gray)
-    table.cell(t, 4, 3, trM15_3, text_color=trM15_3=="📈"?color.green:trM15_3=="📉"?color.red:color.gray)
-    table.cell(t, 3, 4, trH1_4, text_color=trH1_4=="📈"?color.green:trH1_4=="📉"?color.red:color.gray)
-    table.cell(t, 4, 4, trM15_4, text_color=trM15_4=="📈"?color.green:trM15_4=="📉"?color.red:color.gray)
-    table.cell(t, 3, 5, trH1_5, text_color=trH1_5=="📈"?color.green:trH1_5=="📉"?color.red:color.gray)
-    table.cell(t, 4, 5, trM15_5, text_color=trM15_5=="📈"?color.green:trM15_5=="📉"?color.red:color.gray)
-    table.cell(t, 3, 6, trH1_6, text_color=trH1_6=="📈"?color.green:trH1_6=="📉"?color.red:color.gray)
-    table.cell(t, 4, 6, trM15_6, text_color=trM15_6=="📈"?color.green:trM15_6=="📉"?color.red:color.gray)
-    table.cell(t, 3, 7, trH1_7, text_color=trH1_7=="📈"?color.green:trH1_7=="📉"?color.red:color.gray)
-    table.cell(t, 4, 7, trM15_7, text_color=trM15_7=="📈"?color.green:trM15_7=="📉"?color.red:color.gray)
-    table.cell(t, 3, 8, trH1_8, text_color=trH1_8=="📈"?color.green:trH1_8=="📉"?color.red:color.gray)
-    table.cell(t, 4, 8, trM15_8, text_color=trM15_8=="📈"?color.green:trM15_8=="📉"?color.red:color.gray)
-    table.cell(t, 3, 9, trH1_9, text_color=trH1_9=="📈"?color.green:trH1_9=="📉"?color.red:color.gray)
-    table.cell(t, 4, 9, trM15_9, text_color=trM15_9=="📈"?color.green:trM15_9=="📉"?color.red:color.gray)
-    table.cell(t, 3, 10, trH1_10, text_color=trH1_10=="📈"?color.green:trH1_10=="📉"?color.red:color.gray)
-    table.cell(t, 4, 10, trM15_10, text_color=trM15_10=="📈"?color.green:trM15_10=="📉"?color.red:color.gray)
-    table.cell(t, 3, 11, trH1_11, text_color=trH1_11=="📈"?color.green:trH1_11=="📉"?color.red:color.gray)
-    table.cell(t, 4, 11, trM15_11, text_color=trM15_11=="📈"?color.green:trM15_11=="📉"?color.red:color.gray)
-    table.cell(t, 3, 12, trH1_12, text_color=trH1_12=="📈"?color.green:trH1_12=="📉"?color.red:color.gray)
-    table.cell(t, 4, 12, trM15_12, text_color=trM15_12=="📈"?color.green:trM15_12=="📉"?color.red:color.gray)
-    table.cell(t, 3, 13, trH1_13, text_color=trH1_13=="📈"?color.green:trH1_13=="📉"?color.red:color.gray)
-    table.cell(t, 4, 13, trM15_13, text_color=trM15_13=="📈"?color.green:trM15_13=="📉"?color.red:color.gray)
-    table.cell(t, 3, 14, trH1_14, text_color=trH1_14=="📈"?color.green:trH1_14=="📉"?color.red:color.gray)
-    table.cell(t, 4, 14, trM15_14, text_color=trM15_14=="📈"?color.green:trM15_14=="📉"?color.red:color.gray)
-    table.cell(t, 3, 15, trH1_15, text_color=trH1_15=="📈"?color.green:trH1_15=="📉"?color.red:color.gray)
-    table.cell(t, 4, 15, trM15_15, text_color=trM15_15=="📈"?color.green:trM15_15=="📉"?color.red:color.gray)
-    table.cell(t, 3, 16, trH1_16, text_color=trH1_16=="📈"?color.green:trH1_16=="📉"?color.red:color.gray)
-    table.cell(t, 4, 16, trM15_16, text_color=trM15_16=="📈"?color.green:trM15_16=="📉"?color.red:color.gray)
-    table.cell(t, 3, 17, trH1_17, text_color=trH1_17=="📈"?color.green:trH1_17=="📉"?color.red:color.gray)
-    table.cell(t, 4, 17, trM15_17, text_color=trM15_17=="📈"?color.green:trM15_17=="📉"?color.red:color.gray)
